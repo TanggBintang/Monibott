@@ -1,0 +1,74 @@
+2025-08-04 11:21:04,388 - __main__ - ERROR - Error building application: 'Updater' object has no attribute '_Updater__polling_cleanup_cb' and no __dict__ for setting new attributes
+2025-08-04 11:31:58,727 - __main__ - ERROR - Update Update(message=Message(channel_chat_created=False, chat=Chat(first_name='Manajemen Informatika_Muhammad Ilham Bintang', id=1979790761, last_name='Ilham Bintang', type=<ChatType.PRIVATE>, username='HamssGudd'), date=datetime.datetime(2025, 8, 4, 4, 32, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=6, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='Manajemen Informatika_Muhammad Ilham Bintang', id=1979790761, is_bot=False, language_code='en', last_name='Ilham Bintang', username='HamssGudd'), group_chat_created=False, message_id=28, supergroup_chat_created=False, text='/start'), update_id=256084451) caused error Can't parse entities: can't find end of the entity starting at byte offset 44
+2025-08-04 11:32:02,569 - __main__ - ERROR - Update Update(message=Message(channel_chat_created=False, chat=Chat(first_name='Manajemen Informatika_Muhammad Ilham Bintang', id=1979790761, last_name='Ilham Bintang', type=<ChatType.PRIVATE>, username='HamssGudd'), date=datetime.datetime(2025, 8, 4, 4, 32, 4, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=6, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='Manajemen Informatika_Muhammad Ilham Bintang', id=1979790761, is_bot=False, language_code='en', last_name='Ilham Bintang', username='HamssGudd'), group_chat_created=False, message_id=30, supergroup_chat_created=False, text='/start'), update_id=256084452) caused error Can't parse entities: can't find end of the entity starting at byte offset 44
+2025-08-04 11:40:50,271 - __main__ - ERROR - Update Update(message=Message(channel_chat_created=False, chat=Chat(first_name='Manajemen Informatika_Muhammad Ilham Bintang', id=1979790761, last_name='Ilham Bintang', type=<ChatType.PRIVATE>, username='HamssGudd'), date=datetime.datetime(2025, 8, 4, 4, 40, 51, tzinfo=datetime.timezone.utc), delete_chat_photo=False, entities=(MessageEntity(length=6, offset=0, type=<MessageEntityType.BOT_COMMAND>),), from_user=User(first_name='Manajemen Informatika_Muhammad Ilham Bintang', id=1979790761, is_bot=False, language_code='en', last_name='Ilham Bintang', username='HamssGudd'), group_chat_created=False, message_id=32, supergroup_chat_created=False, text='/start'), update_id=256084453) caused error Can't parse entities: can't find end of the entity starting at byte offset 44
+2025-08-04 11:59:36,413 - __main__ - INFO - User 1979790761 starting new report
+2025-08-04 12:04:53,466 - __main__ - INFO - User 1979790761 starting new report
+2025-08-08 08:29:51,096 - __main__ - INFO - python-telegram-bot version: 22.3
+2025-08-08 08:29:51,120 - __main__ - INFO - Loaded 2 users from file
+2025-08-08 08:29:51,121 - __main__ - INFO - Starting Telegram Bot...
+2025-08-08 08:29:51,147 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0
+2025-08-08 08:29:51,153 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0
+2025-08-08 08:29:51,158 - __main__ - INFO - Google APIs authenticated successfully!
+2025-08-08 08:29:51,158 - __main__ - INFO - Testing spreadsheet connection...
+2025-08-08 08:29:52,380 - __main__ - ERROR - Error connecting to spreadsheet: <HttpError 404 when requesting https://sheets.googleapis.com/v4/spreadsheets/Y1y_VwDtLa_G-gQeTDeEGkN7W8hwHliORhIAKSJEgYPhMOUR_SPREADSHEET_ID_HERE/values/Sheet1%21A1%3AI10?alt=json returned "Requested entity was not found.". Details: "Requested entity was not found.">
+2025-08-08 08:29:52,381 - __main__ - ERROR - Failed to connect to spreadsheet. Please check your SPREADSHEET_ID and permissions.
+2025-08-08 08:30:43,125 - __main__ - INFO - python-telegram-bot version: 22.3
+2025-08-08 08:30:43,126 - __main__ - INFO - Loaded 2 users from file
+2025-08-08 08:30:43,126 - __main__ - INFO - Starting Telegram Bot...
+2025-08-08 08:30:43,134 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0
+2025-08-08 08:30:43,141 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0
+2025-08-08 08:30:43,146 - __main__ - INFO - Google APIs authenticated successfully!
+2025-08-08 08:30:43,147 - __main__ - INFO - Testing spreadsheet connection...
+2025-08-08 08:30:44,349 - __main__ - ERROR - Error connecting to spreadsheet: <HttpError 404 when requesting https://sheets.googleapis.com/v4/spreadsheets/1y_VwDtLa_G-gQeTDeEGkN7W8hwHliORhIAKSJEgYPhMOUR_SPREADSHEET_ID_HERE/values/Sheet1%21A1%3AI10?alt=json returned "Requested entity was not found.". Details: "Requested entity was not found.">
+2025-08-08 08:30:44,350 - __main__ - ERROR - Failed to connect to spreadsheet. Please check your SPREADSHEET_ID and permissions.
+2025-08-08 08:31:12,556 - __main__ - INFO - python-telegram-bot version: 22.3
+2025-08-08 08:31:12,556 - __main__ - INFO - Loaded 2 users from file
+2025-08-08 08:31:12,557 - __main__ - INFO - Starting Telegram Bot...
+2025-08-08 08:31:12,564 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0
+2025-08-08 08:31:12,570 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0
+2025-08-08 08:31:12,575 - __main__ - INFO - Google APIs authenticated successfully!
+2025-08-08 08:31:12,576 - __main__ - INFO - Testing spreadsheet connection...
+2025-08-08 08:31:14,474 - __main__ - INFO - Successfully connected to spreadsheet!
+2025-08-08 08:31:14,474 - __main__ - INFO - Found 10 rows
+2025-08-08 08:31:14,475 - __main__ - INFO - Headers: ['No', 'ID', 'Tanggal', 'Nama teknisi', 'odp', 'odc', 'kabel dropcore', 'speed test', 'Foto Eviden']
+2025-08-08 08:31:14,475 - __main__ - INFO - All systems ready! Starting bot...
+2025-08-08 08:31:15,413 - __main__ - INFO - All handlers setup successfully
+2025-08-08 08:31:15,414 - __main__ - INFO - Bot is running... Press Ctrl+C to stop
+2025-08-08 08:31:17,534 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/getMe "HTTP/1.1 200 OK"
+2025-08-08 08:31:17,536 - __main__ - INFO - Bot is ready, sending startup notification...
+2025-08-08 08:31:19,539 - __main__ - INFO - Starting sequential broadcast to 2 users...
+2025-08-08 08:31:22,964 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/sendMessage "HTTP/1.1 200 OK"
+2025-08-08 08:31:29,193 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/sendMessage "HTTP/1.1 200 OK"
+2025-08-08 08:31:29,195 - __main__ - INFO - Sequential broadcast completed: 2 sent, 0 failed
+2025-08-08 08:31:29,197 - __main__ - INFO - Startup notification sent at 08/08/2025 08:31:19: 2 sent, 0 failed
+2025-08-08 08:31:32,099 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/deleteWebhook "HTTP/1.1 200 OK"
+2025-08-08 08:31:32,105 - telegram.ext.Application - INFO - Application started
+2025-08-08 08:31:41,488 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/getUpdates "HTTP/1.1 200 OK"
+2025-08-08 08:31:44,932 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/sendMessage "HTTP/1.1 200 OK"
+2025-08-08 08:31:53,510 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/getUpdates "HTTP/1.1 200 OK"
+2025-08-08 08:32:04,117 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/getUpdates "HTTP/1.1 200 OK"
+2025-08-08 08:32:14,384 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/getUpdates "HTTP/1.1 200 OK"
+2025-08-08 08:32:25,594 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/getUpdates "HTTP/1.1 200 OK"
+2025-08-08 08:32:26,677 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/getUpdates "HTTP/1.1 200 OK"
+2025-08-08 08:32:27,000 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/getUpdates "HTTP/1.1 200 OK"
+2025-08-08 08:32:27,908 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/sendMessage "HTTP/1.1 200 OK"
+2025-08-08 08:32:28,371 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/sendMessage "HTTP/1.1 200 OK"
+2025-08-08 08:32:37,433 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/getUpdates "HTTP/1.1 200 OK"
+2025-08-08 08:32:38,288 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/getUpdates "HTTP/1.1 200 OK"
+2025-08-08 08:32:42,667 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/sendMessage "HTTP/1.1 200 OK"
+2025-08-08 08:32:50,615 - __main__ - INFO - Received signal 2...
+2025-08-08 08:32:50,617 - __main__ - INFO - Sending shutdown notifications...
+2025-08-08 08:32:50,636 - __main__ - INFO - Saved 2 users to file
+2025-08-08 08:32:50,637 - __main__ - INFO - User data saved before shutdown notification
+2025-08-08 08:32:50,637 - __main__ - INFO - Sending shutdown notification to 2 users...
+2025-08-08 08:32:50,637 - __main__ - INFO - Starting sequential broadcast to 2 users...
+2025-08-08 08:32:52,412 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/sendMessage "HTTP/1.1 200 OK"
+2025-08-08 08:32:55,187 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8284891962:AAHbRY1FB23MIh4TZ8qeSh6CXQ35XKH_XjQ/sendMessage "HTTP/1.1 200 OK"
+2025-08-08 08:32:55,189 - __main__ - INFO - Sequential broadcast completed: 2 sent, 0 failed
+2025-08-08 08:32:55,192 - __main__ - INFO - Shutdown notification completed at 08/08/2025 08:32:50: 2 sent, 0 failed
+2025-08-08 08:32:55,192 - __main__ - INFO - Waiting for messages to be delivered...
+2025-08-08 08:32:58,209 - __main__ - INFO - Shutdown notifications completed
+2025-08-08 08:32:58,227 - __main__ - INFO - Saved 2 users to file
+2025-08-08 08:32:58,228 - __main__ - INFO - Final save completed
+2025-08-08 08:32:58,228 - __main__ - INFO - Exiting now...
