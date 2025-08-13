@@ -1,9 +1,6 @@
 import os
-import json
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.http import MediaFileUpload
 from datetime import datetime
 
@@ -17,31 +14,34 @@ class GoogleService:
         self.parent_folder_id = parent_folder_id
         
     def authenticate(self):
-        """Authenticate with Google APIs using environment variables"""
+        """Authenticate with Google APIs using Service Account"""
         try:
-            # Get credentials from environment variables
-            google_creds = os.getenv('GOOGLE_CREDENTIALS_JSON')
-            if not google_creds:
-                print("❌ GOOGLE_CREDENTIALS_JSON not found in environment variables")
-                return False
+            # Coba ambil dari environment variable dulu (untuk production)
+            service_account_info = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
             
-            # Parse credentials JSON
-            creds_data = json.loads(google_creds)
-            
-            # Create credentials object
-            creds = Credentials.from_authorized_user_info(creds_data, SCOPES)
-            
-            # Refresh if needed
-            if creds.expired and creds.refresh_token:
-                creds.refresh(Request())
+            if service_account_info:
+                # Parse JSON string dari environment variable
+                import json
+                service_account_dict = json.loads(service_account_info)
+                creds = service_account.Credentials.from_service_account_info(
+                    service_account_dict, scopes=SCOPES
+                )
+            else:
+                # Fallback ke file local (untuk development)
+                if os.path.exists('service-account.json'):
+                    creds = service_account.Credentials.from_service_account_file(
+                        'service-account.json', scopes=SCOPES
+                    )
+                else:
+                    raise Exception("Service account credentials not found!")
             
             self.service_drive = build('drive', 'v3', credentials=creds)
             self.service_sheets = build('sheets', 'v4', credentials=creds)
-            print("✅ Google APIs authenticated successfully!")
+            print("✅ Google APIs authenticated successfully with Service Account!")
             return True
             
         except Exception as e:
-            print(f"❌ Authentication error: {e}")
+            print(f"❌ Error authenticating Google APIs: {e}")
             return False
 
     def create_folder(self, folder_name, parent_folder_id=None):
@@ -55,10 +55,10 @@ class GoogleService:
                 folder_metadata['parents'] = [parent_folder_id or self.parent_folder_id]
             
             folder = self.service_drive.files().create(body=folder_metadata).execute()
-            print(f"✅ Folder created: {folder_name}")
+            print(f"âœ… Folder created: {folder_name}")
             return folder.get('id')
         except Exception as e:
-            print(f"❌ Error creating folder: {e}")
+            print(f"âŒ Error creating folder: {e}")
             return None
 
     def upload_to_drive(self, file_path, file_name, folder_id):
@@ -73,10 +73,10 @@ class GoogleService:
                 body=file_metadata, 
                 media_body=media
             ).execute()
-            print(f"✅ File uploaded: {file_name}")
+            print(f"âœ… File uploaded: {file_name}")
             return uploaded_file.get('id')
         except Exception as e:
-            print(f"❌ Error uploading file: {e}")
+            print(f"âŒ Error uploading file: {e}")
             return None
 
     def get_folder_link(self, folder_id):
@@ -97,10 +97,10 @@ class GoogleService:
                 body=body
             ).execute()
             
-            print(f"✅ Successfully added row to spreadsheet")
+            print(f"âœ… Successfully added row to spreadsheet")
             print(f"Row data: {row_data}")  # Debug print
             return True
             
         except Exception as e:
-            print(f"❌ Error updating spreadsheet: {e}")
+            print(f"âŒ Error updating spreadsheet: {e}")
             return False
