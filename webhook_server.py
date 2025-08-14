@@ -24,7 +24,7 @@ app = Flask(__name__)
 telegram_bot = None
 bot_application = None
 
-def initialize_bot():
+async def initialize_bot():
     """Initialize the telegram bot"""
     global telegram_bot, bot_application
     
@@ -41,10 +41,14 @@ def initialize_bot():
     # Create application for webhook
     bot_application = Application.builder().token(BOT_TOKEN).build()
     
+    # IMPORTANT: Initialize the application
+    await bot_application.initialize()
+    await bot_application.start()
+    
     # Add handlers from TelegramBot class
     telegram_bot.setup_handlers(bot_application)
     
-    print("🤖 Bot initialized successfully!")
+    print("🤖 Bot initialized and started successfully!")
     return telegram_bot, bot_application
 
 @app.route('/')
@@ -146,8 +150,8 @@ def delete_webhook():
 
 if __name__ == '__main__':
     try:
-        # Initialize bot
-        initialize_bot()
+        # Initialize bot dengan async
+        asyncio.run(initialize_bot())
         
         # Get port from environment variable (Railway uses PORT)
         port = int(os.getenv('PORT', 5000))
