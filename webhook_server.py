@@ -1,7 +1,7 @@
 import os
 import json
 from dotenv import load_dotenv
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from telegram import Update
 from telegram.ext import Application, ContextTypes
 import asyncio
@@ -50,21 +50,24 @@ def initialize_bot():
 @app.route('/')
 def index():
     """Health check endpoint"""
-    return {
+    return jsonify({
         "status": "ok",
         "message": "Telegram Bot Webhook Server is running",
         "bot": "Report Bot"
-    }
+    })
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
     """Handle incoming webhook from Telegram"""
     try:
         # Get JSON data from request
-        json_data = request.get_json()
+        json_data = request.get_json(force=True)
         
         if not json_data:
-            return {"status": "error", "message": "No JSON data received"}, 400
+            return jsonify({"status": "error", "message": "No JSON data received"}), 400
+        
+        # Log the received data for debugging
+        logging.info(f"Received webhook data: {json.dumps(json_data, indent=2)}")
         
         # Create Update object
         update = Update.de_json(json_data, bot_application.bot)
@@ -72,37 +75,47 @@ def webhook():
         # Process update asynchronously
         asyncio.run(bot_application.process_update(update))
         
-        return {"status": "ok"}
+        return jsonify({"status": "ok"})
         
     except Exception as e:
-        print(f"❌ Error processing webhook: {e}")
-        return {"status": "error", "message": str(e)}, 500
+        logging.error(f"Error processing webhook: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/set-webhook', methods=['POST'])
 def set_webhook():
     """Set webhook URL for Telegram bot"""
     try:
-        webhook_url = request.json.get('webhook_url')
+        # Get JSON data
+        json_data = request.get_json()
+        if not json_data:
+            return jsonify({"status": "error", "message": "JSON data is required"}), 400
+            
+        webhook_url = json_data.get('webhook_url')
         if not webhook_url:
-            return {"status": "error", "message": "webhook_url is required"}, 400
+            return jsonify({"status": "error", "message": "webhook_url is required"}), 400
+        
+        # Ensure webhook_url ends with the correct path
+        if not webhook_url.endswith('/webhook'):
+            webhook_url = webhook_url.rstrip('/') + '/webhook'
         
         # Set webhook
-        result = asyncio.run(bot_application.bot.set_webhook(url=webhook_url + '/webhook'))
+        result = asyncio.run(bot_application.bot.set_webhook(url=webhook_url))
         
         if result:
-            return {"status": "ok", "message": f"Webhook set to {webhook_url}/webhook"}
+            return jsonify({"status": "ok", "message": f"Webhook set to {webhook_url}"})
         else:
-            return {"status": "error", "message": "Failed to set webhook"}, 500
+            return jsonify({"status": "error", "message": "Failed to set webhook"}), 500
             
     except Exception as e:
-        return {"status": "error", "message": str(e)}, 500
+        logging.error(f"Error setting webhook: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/webhook-info', methods=['GET'])
 def webhook_info():
     """Get current webhook info"""
     try:
         info = asyncio.run(bot_application.bot.get_webhook_info())
-        return {
+        return jsonify({
             "status": "ok",
             "webhook_info": {
                 "url": info.url,
@@ -113,9 +126,23 @@ def webhook_info():
                 "max_connections": info.max_connections,
                 "allowed_updates": info.allowed_updates
             }
-        }
+        })
     except Exception as e:
-        return {"status": "error", "message": str(e)}, 500
+        logging.error(f"Error getting webhook info: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/delete-webhook', methods=['POST'])
+def delete_webhook():
+    """Delete current webhook"""
+    try:
+        result = asyncio.run(bot_application.bot.delete_webhook())
+        if result:
+            return jsonify({"status": "ok", "message": "Webhook deleted successfully"})
+        else:
+            return jsonify({"status": "error", "message": "Failed to delete webhook"}), 500
+    except Exception as e:
+        logging.error(f"Error deleting webhook: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
     try:
