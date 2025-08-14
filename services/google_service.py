@@ -28,78 +28,7 @@ class GoogleService:
                         service_account_dict, scopes=SCOPES
                     )
                     print("✅ Using service account from environment variable")
-                except Exception as e:
-            print(f"❌ Error accessing spreadsheet: {e}")
-            return False
-
-    def delete_file_or_folder(self, file_id):
-        """Delete file or folder from Google Drive"""
-        try:
-            if not self.service_drive:
-                print("❌ Google Drive service not initialized")
-                return False
-                
-            self.service_drive.files().delete(fileId=file_id).execute()
-            print(f"✅ Successfully deleted file/folder: {file_id}")
-            return True
-            
-        except Exception as e:
-            print(f"❌ Error deleting file/folder {file_id}: {e}")
-            return False
-
-    def list_files_in_folder(self, folder_id, max_results=100):
-        """List files in a Google Drive folder"""
-        try:
-            if not self.service_drive:
-                print("❌ Google Drive service not initialized")
-                return []
-            
-            query = f"'{folder_id}' in parents and trashed=false"
-            results = self.service_drive.files().list(
-                q=query,
-                pageSize=max_results,
-                fields="nextPageToken, files(id, name, mimeType, createdTime, size)"
-            ).execute()
-            
-            files = results.get('files', [])
-            print(f"📁 Found {len(files)} files in folder {folder_id}")
-            
-            return files
-            
-        except Exception as e:
-            print(f"❌ Error listing files in folder {folder_id}: {e}")
-            return []
-
-    def get_spreadsheet_info(self, spreadsheet_id):
-        """Get basic information about a spreadsheet"""
-        try:
-            if not self.service_sheets:
-                print("❌ Google Sheets service not initialized")
-                return None
-            
-            spreadsheet = self.service_sheets.spreadsheets().get(
-                spreadsheetId=spreadsheet_id,
-                fields="properties,sheets.properties"
-            ).execute()
-            
-            properties = spreadsheet.get('properties', {})
-            sheets = spreadsheet.get('sheets', [])
-            
-            info = {
-                'title': properties.get('title', 'Unknown'),
-                'locale': properties.get('locale', 'Unknown'),
-                'timeZone': properties.get('timeZone', 'Unknown'),
-                'sheet_count': len(sheets),
-                'sheets': [sheet.get('properties', {}).get('title', f'Sheet{i+1}') 
-                          for i, sheet in enumerate(sheets)]
-            }
-            
-            print(f"📊 Spreadsheet info: {info}")
-            return info
-            
-        except Exception as e:
-            print(f"❌ Error getting spreadsheet info: {e}")
-            return None json.JSONDecodeError as e:
+                except json.JSONDecodeError as e:
                     print(f"❌ Error parsing service account JSON from environment: {e}")
                     return False
             else:
@@ -132,7 +61,7 @@ class GoogleService:
                 drive_about = self.service_drive.about().get(fields="user").execute()
                 print(f"✅ Google Drive API connected as: {drive_about.get('user', {}).get('emailAddress', 'Unknown')}")
                 
-                # Test Sheets API by getting spreadsheet info (if we have a test spreadsheet ID)
+                # Test Sheets API
                 print("✅ Google Sheets API connected successfully")
                 
             except Exception as e:
@@ -333,4 +262,75 @@ class GoogleService:
             print(f"✅ Spreadsheet access confirmed: '{title}'")
             return True
             
-        except
+        except Exception as e:
+            print(f"❌ Error accessing spreadsheet: {e}")
+            return False
+
+    def delete_file_or_folder(self, file_id):
+        """Delete file or folder from Google Drive"""
+        try:
+            if not self.service_drive:
+                print("❌ Google Drive service not initialized")
+                return False
+                
+            self.service_drive.files().delete(fileId=file_id).execute()
+            print(f"✅ Successfully deleted file/folder: {file_id}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error deleting file/folder {file_id}: {e}")
+            return False
+
+    def list_files_in_folder(self, folder_id, max_results=100):
+        """List files in a Google Drive folder"""
+        try:
+            if not self.service_drive:
+                print("❌ Google Drive service not initialized")
+                return []
+            
+            query = f"'{folder_id}' in parents and trashed=false"
+            results = self.service_drive.files().list(
+                q=query,
+                pageSize=max_results,
+                fields="nextPageToken, files(id, name, mimeType, createdTime, size)"
+            ).execute()
+            
+            files = results.get('files', [])
+            print(f"📁 Found {len(files)} files in folder {folder_id}")
+            
+            return files
+            
+        except Exception as e:
+            print(f"❌ Error listing files in folder {folder_id}: {e}")
+            return []
+
+    def get_spreadsheet_info(self, spreadsheet_id):
+        """Get basic information about a spreadsheet"""
+        try:
+            if not self.service_sheets:
+                print("❌ Google Sheets service not initialized")
+                return None
+            
+            spreadsheet = self.service_sheets.spreadsheets().get(
+                spreadsheetId=spreadsheet_id,
+                fields="properties,sheets.properties"
+            ).execute()
+            
+            properties = spreadsheet.get('properties', {})
+            sheets = spreadsheet.get('sheets', [])
+            
+            info = {
+                'title': properties.get('title', 'Unknown'),
+                'locale': properties.get('locale', 'Unknown'),
+                'timeZone': properties.get('timeZone', 'Unknown'),
+                'sheet_count': len(sheets),
+                'sheets': [sheet.get('properties', {}).get('title', f'Sheet{i+1}') 
+                          for i, sheet in enumerate(sheets)]
+            }
+            
+            print(f"📊 Spreadsheet info: {info}")
+            return info
+            
+        except Exception as e:
+            print(f"❌ Error getting spreadsheet info: {e}")
+            return None
