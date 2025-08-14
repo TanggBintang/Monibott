@@ -11,9 +11,10 @@ from telegram.ext import (
 )
 from datetime import datetime
 
-from config.spreadsheet_config import SpreadsheetConfig
+# Fixed imports - use absolute paths
 from services.google_service import GoogleService
 from services.session_service import SessionService
+from config.spreadsheet_config import SpreadsheetConfig
 
 # States untuk ConversationHandler
 SELECT_REPORT_TYPE, INPUT_ID, INPUT_DATA, CONFIRM_DATA, UPLOAD_PHOTO, INPUT_PHOTO_DESC = range(6)
@@ -38,9 +39,9 @@ class TelegramBot:
         if session and session.get('folder_id'):
             try:
                 self.google_service.service_drive.files().delete(fileId=session['folder_id']).execute()
-                print(f"âœ… Folder deleted for user {user_id}")
+                print(f"✅ Folder deleted for user {user_id}")
             except Exception as e:
-                print(f"âŒ Error deleting folder: {e}")
+                print(f"❌ Error deleting folder: {e}")
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start command handler"""
@@ -56,7 +57,7 @@ class TelegramBot:
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
         await update.message.reply_text(
-            "ðŸ“‹ Pilih Jenis Laporan:",
+            "📋 Pilih Jenis Laporan:",
             reply_markup=reply_markup
         )
         return SELECT_REPORT_TYPE
@@ -76,8 +77,8 @@ class TelegramBot:
         self.session_service.update_session(user_id, {'report_type': message_text})
         
         await update.message.reply_text(
-            "ðŸ†” Masukkan ID Ticket:",
-            reply_markup=ReplyKeyboardMarkup([[KeyboardButton("âŒ Batalkan")]], resize_keyboard=True)
+            "🎫 Masukkan ID Ticket:",
+            reply_markup=ReplyKeyboardMarkup([[KeyboardButton("❌ Batalkan")]], resize_keyboard=True)
         )
         return INPUT_ID
 
@@ -86,7 +87,7 @@ class TelegramBot:
         user_id = update.effective_user.id
         ticket_id = update.message.text.strip()
         
-        if ticket_id == "âŒ Batalkan":
+        if ticket_id == "❌ Batalkan":
             self.delete_folder_if_exists(user_id)
             self.session_service.end_session(user_id)
             await update.message.reply_text(
@@ -116,7 +117,7 @@ class TelegramBot:
         # Kirim format pengisian
         folder_link = self.google_service.get_folder_link(folder_id)
         report_format = (
-            f"ðŸ“‹ Format Berhasil Dibuat\n\n"
+            f"📋 Format Berhasil Dibuat\n\n"
             f"Report Type : {session['report_type']}\n"
             f"ID Ticket : {ticket_id}\n"
             f"Folder Drive : {folder_link}\n"
@@ -133,7 +134,7 @@ class TelegramBot:
         
         await update.message.reply_text(
             report_format,
-            reply_markup=ReplyKeyboardMarkup([[KeyboardButton("âŒ Batalkan")]], resize_keyboard=True)
+            reply_markup=ReplyKeyboardMarkup([[KeyboardButton("❌ Batalkan")]], resize_keyboard=True)
         )
         return INPUT_DATA
 
@@ -142,7 +143,7 @@ class TelegramBot:
         user_id = update.effective_user.id
         message_text = update.message.text
         
-        if message_text == "âŒ Batalkan":
+        if message_text == "❌ Batalkan":
             self.delete_folder_if_exists(user_id)
             self.session_service.end_session(user_id)
             await update.message.reply_text(
@@ -196,14 +197,14 @@ class TelegramBot:
         session = self.session_service.get_session(user_id)
         photo_info = ""
         if session['photos']:
-            photo_info = f"\nðŸ“· Foto Terupload: {len(session['photos'])} foto\n"
+            photo_info = f"\n📷 Foto Terupload: {len(session['photos'])} foto\n"
             for i, photo in enumerate(session['photos'], 1):
                 photo_info += f"   {i}. {photo['name']}\n"
         else:
-            photo_info = "\nðŸ“· Foto Eviden: Belum ada foto terupload\n"
+            photo_info = "\n📷 Foto Eviden: Belum ada foto terupload\n"
         
         confirmation_text = (
-            f"ðŸ“‹ Konfirmasi Data Laporan\n\n"
+            f"📋 Konfirmasi Data Laporan\n\n"
             f"Report Type: {report_data['report_type']}\n"
             f"ID Ticket: {report_data['id_ticket']}\n"
             f"Customer Name: {report_data['customer_name']}\n"
@@ -218,8 +219,8 @@ class TelegramBot:
         )
         
         keyboard = [
-            [KeyboardButton("âœ… Kirim Laporan"), KeyboardButton("ðŸ“ Edit Data")],
-            [KeyboardButton("ðŸ“· Upload Foto Eviden"), KeyboardButton("âŒ Batalkan")]
+            [KeyboardButton("✅ Kirim Laporan"), KeyboardButton("📝 Edit Data")],
+            [KeyboardButton("📷 Upload Foto Eviden"), KeyboardButton("❌ Batalkan")]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
@@ -232,7 +233,7 @@ class TelegramBot:
         choice = update.message.text
         session = self.session_service.get_session(user_id)
         
-        if choice == "âœ… Kirim Laporan":
+        if choice == "✅ Kirim Laporan":
             # Kirim ke spreadsheet
             success = self.google_service.update_spreadsheet(
                 self.spreadsheet_id,
@@ -242,9 +243,9 @@ class TelegramBot:
             
             if success:
                 photo_count = len(session['photos'])
-                success_message = "âœ… Laporan berhasil dikirim ke spreadsheet!"
+                success_message = "✅ Laporan berhasil dikirim ke spreadsheet!"
                 if photo_count > 0:
-                    success_message += f"\nðŸ“· {photo_count} foto eviden tersimpan di folder Drive."
+                    success_message += f"\n📷 {photo_count} foto eviden tersimpan di folder Drive."
                 
                 await update.message.reply_text(
                     success_message,
@@ -252,17 +253,17 @@ class TelegramBot:
                 )
             else:
                 await update.message.reply_text(
-                    "âŒ Gagal mengirim laporan. Silakan coba lagi.",
+                    "❌ Gagal mengirim laporan. Silakan coba lagi.",
                     reply_markup=ReplyKeyboardMarkup([[KeyboardButton("/start")]], resize_keyboard=True)
                 )
             
             self.session_service.end_session(user_id)
             return ConversationHandler.END
             
-        elif choice == "ðŸ“ Edit Data":
+        elif choice == "📝 Edit Data":
             # Kirim ulang format untuk diedit
             report_format = (
-                f"ðŸ“ Edit Data Laporan\n\n"
+                f"📝 Edit Data Laporan\n\n"
                 f"Report Type : {session['data']['report_type']}\n"
                 f"ID Ticket : {session['data']['id_ticket']}\n"
                 f"Folder Drive : {session['data']['folder_link']}\n"
@@ -279,26 +280,26 @@ class TelegramBot:
             
             await update.message.reply_text(
                 report_format,
-                reply_markup=ReplyKeyboardMarkup([[KeyboardButton("âŒ Batalkan")]], resize_keyboard=True)
+                reply_markup=ReplyKeyboardMarkup([[KeyboardButton("❌ Batalkan")]], resize_keyboard=True)
             )
             return INPUT_DATA
             
-        elif choice == "ðŸ“· Upload Foto Eviden":
+        elif choice == "📷 Upload Foto Eviden":
             await update.message.reply_text(
-                "ðŸ“· **Upload Foto Eviden**\n\n"
-                "âš ï¸ **PENTING - Cara Upload Foto:**\n"
-                "â€¢ **Satu foto**: Kirim 1 foto â†’ input deskripsi custom\n"
-                "â€¢ **Beberapa foto sekaligus**: Deskripsi akan otomatis random (foto_1, foto_2, dst)\n\n"
-                "ðŸ“ **Pilih metode upload:**",
+                "📷 **Upload Foto Eviden**\n\n"
+                "⚠️ **PENTING - Cara Upload Foto:**\n"
+                "• **Satu foto**: Kirim 1 foto → input deskripsi custom\n"
+                "• **Beberapa foto sekaligus**: Deskripsi akan otomatis random (foto_1, foto_2, dst)\n\n"
+                "📤 **Pilih metode upload:**",
                 reply_markup=ReplyKeyboardMarkup([
-                    [KeyboardButton("ðŸ“¸ Upload Satu-Satu (Custom Nama)")],
-                    [KeyboardButton("ðŸ“· Upload Banyak (Auto Nama)")],
-                    [KeyboardButton("âŒ Batalkan")]
+                    [KeyboardButton("📸 Upload Satu-Satu (Custom Nama)")],
+                    [KeyboardButton("📷 Upload Banyak (Auto Nama)")],
+                    [KeyboardButton("❌ Batalkan")]
                 ], resize_keyboard=True)
             )
             return UPLOAD_PHOTO
             
-        elif choice == "âŒ Batalkan":
+        elif choice == "❌ Batalkan":
             self.delete_folder_if_exists(user_id)
             self.session_service.end_session(user_id)
             await update.message.reply_text(
@@ -313,28 +314,28 @@ class TelegramBot:
         message_text = update.message.text
         
         # Handle pilihan metode upload
-        if message_text == "ðŸ“¸ Upload Satu-Satu (Custom Nama)":
+        if message_text == "📸 Upload Satu-Satu (Custom Nama)":
             # Set mode upload satu-satu
             context.user_data['upload_mode'] = 'single'
             await update.message.reply_text(
-                "ðŸ“¸ **Mode Upload Satu-Satu**\n\n"
+                "📸 **Mode Upload Satu-Satu**\n\n"
                 "Kirimkan foto satu per satu. Setiap foto akan diminta deskripsi custom.\n\n"
                 "Kirimkan foto pertama:",
                 reply_markup=ReplyKeyboardMarkup([
-                    [KeyboardButton("Selesai Upload"), KeyboardButton("âŒ Batalkan")]
+                    [KeyboardButton("Selesai Upload"), KeyboardButton("❌ Batalkan")]
                 ], resize_keyboard=True)
             )
             return UPLOAD_PHOTO
             
-        elif message_text == "ðŸ“· Upload Banyak (Auto Nama)":
+        elif message_text == "📷 Upload Banyak (Auto Nama)":
             # Set mode upload banyak
             context.user_data['upload_mode'] = 'multiple'
             await update.message.reply_text(
-                "ðŸ“· **Mode Upload Banyak**\n\n"
+                "📷 **Mode Upload Banyak**\n\n"
                 "Kirimkan beberapa foto sekaligus. Nama file akan otomatis: foto_1, foto_2, dst.\n\n"
                 "Kirimkan foto-foto Anda:",
                 reply_markup=ReplyKeyboardMarkup([
-                    [KeyboardButton("Selesai Upload"), KeyboardButton("âŒ Batalkan")]
+                    [KeyboardButton("Selesai Upload"), KeyboardButton("❌ Batalkan")]
                 ], resize_keyboard=True)
             )
             return UPLOAD_PHOTO
@@ -348,14 +349,14 @@ class TelegramBot:
             session = self.session_service.get_session(user_id)
             photo_info = ""
             if session['photos']:
-                photo_info = f"\nðŸ“· Foto Terupload: {len(session['photos'])} foto\n"
+                photo_info = f"\n📷 Foto Terupload: {len(session['photos'])} foto\n"
                 for i, photo in enumerate(session['photos'], 1):
                     photo_info += f"   {i}. {photo['name']}\n"
             else:
-                photo_info = "\nðŸ“· Foto Eviden: Belum ada foto terupload\n"
+                photo_info = "\n📷 Foto Eviden: Belum ada foto terupload\n"
             
             confirmation_text = (
-                f"ðŸ“‹ Konfirmasi Data Laporan\n\n"
+                f"📋 Konfirmasi Data Laporan\n\n"
                 f"Report Type: {session['data']['report_type']}\n"
                 f"ID Ticket: {session['data']['id_ticket']}\n"
                 f"Customer Name: {session['data']['customer_name']}\n"
@@ -370,15 +371,15 @@ class TelegramBot:
             )
             
             keyboard = [
-                [KeyboardButton("âœ… Kirim Laporan"), KeyboardButton("ðŸ“ Edit Data")],
-                [KeyboardButton("ðŸ“· Upload Foto Eviden"), KeyboardButton("âŒ Batalkan")]
+                [KeyboardButton("✅ Kirim Laporan"), KeyboardButton("📝 Edit Data")],
+                [KeyboardButton("📷 Upload Foto Eviden"), KeyboardButton("❌ Batalkan")]
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
             
             await update.message.reply_text(confirmation_text, reply_markup=reply_markup)
             return CONFIRM_DATA
         
-        elif message_text == "âŒ Batalkan":
+        elif message_text == "❌ Batalkan":
             # Reset upload mode
             if 'upload_mode' in context.user_data:
                 del context.user_data['upload_mode']
@@ -400,10 +401,10 @@ class TelegramBot:
                 context.user_data['temp_photo'] = photo
                 
                 await update.message.reply_text(
-                    "ðŸ“ Masukkan deskripsi untuk foto ini (akan digunakan sebagai nama file):\n\n"
+                    "📝 Masukkan deskripsi untuk foto ini (akan digunakan sebagai nama file):\n\n"
                     "Contoh: 'foto_sebelum_perbaikan', 'hasil_instalasi', dll",
                     reply_markup=ReplyKeyboardMarkup([
-                        [KeyboardButton("âŒ Batalkan")]
+                        [KeyboardButton("❌ Batalkan")]
                     ], resize_keyboard=True)
                 )
                 return INPUT_PHOTO_DESC
@@ -413,7 +414,7 @@ class TelegramBot:
                 session = self.session_service.get_session(user_id)
                 if not session or not session.get('folder_id'):
                     await update.message.reply_text(
-                        "âŒ Session tidak valid. Silakan mulai ulang.",
+                        "❌ Session tidak valid. Silakan mulai ulang.",
                         reply_markup=ReplyKeyboardMarkup([[KeyboardButton("/start")]], resize_keyboard=True)
                     )
                     return ConversationHandler.END
@@ -443,19 +444,19 @@ class TelegramBot:
                         })
                         
                         await update.message.reply_text(
-                            f"âœ… Foto '{filename}' berhasil diupload!\n\n"
-                            f"ðŸ“· Total foto terupload: {len(session['photos'])}\n\n"
+                            f"✅ Foto '{filename}' berhasil diupload!\n\n"
+                            f"📷 Total foto terupload: {len(session['photos'])}\n\n"
                             f"Kirim foto lain atau ketik 'Selesai Upload'."
                         )
                     else:
                         await update.message.reply_text(
-                            "âŒ Gagal mengupload foto. Silakan coba lagi."
+                            "❌ Gagal mengupload foto. Silakan coba lagi."
                         )
                         
                 except Exception as e:
                     print(f"Error uploading photo: {e}")
                     await update.message.reply_text(
-                        "âŒ Terjadi kesalahan saat mengupload foto. Silakan coba lagi."
+                        "❌ Terjadi kesalahan saat mengupload foto. Silakan coba lagi."
                     )
                 
                 return UPLOAD_PHOTO
@@ -477,14 +478,14 @@ class TelegramBot:
         user_id = update.effective_user.id
         description = update.message.text.strip()
         
-        if description == "âŒ Batalkan":
+        if description == "❌ Batalkan":
             # Kembali ke upload photo mode single
             await update.message.reply_text(
-                "ðŸ“¸ **Mode Upload Satu-Satu**\n\n"
+                "📸 **Mode Upload Satu-Satu**\n\n"
                 "Kirimkan foto satu per satu. Setiap foto akan diminta deskripsi custom.\n\n"
                 "Kirimkan foto:",
                 reply_markup=ReplyKeyboardMarkup([
-                    [KeyboardButton("Selesai Upload"), KeyboardButton("âŒ Batalkan")]
+                    [KeyboardButton("Selesai Upload"), KeyboardButton("❌ Batalkan")]
                 ], resize_keyboard=True)
             )
             return UPLOAD_PHOTO
@@ -524,26 +525,26 @@ class TelegramBot:
                     })
                     
                     await update.message.reply_text(
-                        f"âœ… Foto '{filename}' berhasil diupload!\n\n"
-                        f"ðŸ“· Total foto terupload: {len(session['photos'])}\n\n"
+                        f"✅ Foto '{filename}' berhasil diupload!\n\n"
+                        f"📷 Total foto terupload: {len(session['photos'])}\n\n"
                         f"Kirim foto lain atau ketik 'Selesai Upload'.",
                         reply_markup=ReplyKeyboardMarkup([
-                            [KeyboardButton("Selesai Upload"), KeyboardButton("âŒ Batalkan")]
+                            [KeyboardButton("Selesai Upload"), KeyboardButton("❌ Batalkan")]
                         ], resize_keyboard=True)
                     )
                 else:
                     await update.message.reply_text(
-                        "âŒ Gagal mengupload foto. Silakan coba lagi.",
+                        "❌ Gagal mengupload foto. Silakan coba lagi.",
                         reply_markup=ReplyKeyboardMarkup([
-                            [KeyboardButton("Selesai Upload"), KeyboardButton("âŒ Batalkan")]
+                            [KeyboardButton("Selesai Upload"), KeyboardButton("❌ Batalkan")]
                         ], resize_keyboard=True)
                     )
             except Exception as e:
                 print(f"Error uploading photo: {e}")
                 await update.message.reply_text(
-                    "âŒ Terjadi kesalahan saat mengupload foto. Silakan coba lagi.",
+                    "❌ Terjadi kesalahan saat mengupload foto. Silakan coba lagi.",
                     reply_markup=ReplyKeyboardMarkup([
-                        [KeyboardButton("Selesai Upload"), KeyboardButton("âŒ Batalkan")]
+                        [KeyboardButton("Selesai Upload"), KeyboardButton("❌ Batalkan")]
                     ], resize_keyboard=True)
                 )
         
@@ -622,5 +623,3 @@ class TelegramBot:
         
         print("🤖 Bot is running... Press Ctrl+C to stop")
         application.run_polling()
-
-# Hapus seluruh blok if __name__ == "__main__": dan ganti dengan method baru
