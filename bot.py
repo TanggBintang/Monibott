@@ -1,6 +1,6 @@
 import os
 import re
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -45,195 +45,356 @@ class TelegramBot:
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start command handler"""
-        user_id = update.effective_user.id
-        
-        # Buat sesi baru
-        self.session_service.create_session(user_id)
-        
-        keyboard = [
-            [KeyboardButton("Non B2B"), KeyboardButton("BGES")],
-            [KeyboardButton("Squad")]
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        
-        await update.message.reply_text(
-            "📋 Pilih Jenis Laporan:",
-            reply_markup=reply_markup
-        )
-        return SELECT_REPORT_TYPE
+        try:
+            user_id = update.effective_user.id
+            username = update.effective_user.first_name or "User"
+            
+            # Clean up any existing session
+            self.session_service.end_session(user_id)
+            
+            # Buat sesi baru
+            self.session_service.create_session(user_id)
+            
+            keyboard = [
+                [KeyboardButton("Non B2B"), KeyboardButton("BGES")],
+                [KeyboardButton("Squad")]
+            ]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+            
+            await update.message.reply_text(
+                f"👋 Halo {username}!\n\n"
+                f"📋 Selamat datang di Report Bot\n"
+                f"Silakan pilih jenis laporan:",
+                reply_markup=reply_markup
+            )
+            return SELECT_REPORT_TYPE
+            
+        except Exception as e:
+            print(f"Error in start handler: {e}")
+            await update.message.reply_text(
+                "❌ Terjadi kesalahan. Silakan coba lagi dengan /start"
+            )
+            return ConversationHandler.END
 
     async def select_report_type(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle report type selection"""
-        user_id = update.effective_user.id
-        message_text = update.message.text
-        
-        # Handle normal report type selection
-        valid_types = ['Non B2B', 'BGES', 'Squad']
-        if message_text not in valid_types:
-            await update.message.reply_text("Pilihan tidak valid. Silakan pilih jenis laporan yang tersedia.")
-            return SELECT_REPORT_TYPE
-        
-        # Update session
-        self.session_service.update_session(user_id, {'report_type': message_text})
-        
-        await update.message.reply_text(
-            "🎫 Masukkan ID Ticket:",
-            reply_markup=ReplyKeyboardMarkup([[KeyboardButton("❌ Batalkan")]], resize_keyboard=True)
-        )
-        return INPUT_ID
+        try:
+            user_id = update.effective_user.id
+            message_text = update.message.text.strip()
+            
+            print(f"User {user_id} selected: '{message_text}'")  # Debug log
+            
+            # Handle normal report type selection
+            valid_types = ['Non B2B', 'BGES', 'Squad']
+            if message_text not in valid_types:
+                keyboard = [
+                    [KeyboardButton("Non B2B"), KeyboardButton("BGES")],
+                    [KeyboardButton("Squad")]
+                ]
+                reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+                await update.message.reply_text(
+                    "❌ Pilihan tidak valid.\n"
+                    "Silakan pilih salah satu jenis laporan yang tersedia:",
+                    reply_markup=reply_markup
+                )
+                return SELECT_REPORT_TYPE
+            
+            # Update session
+            session = self.session_service.get_session(user_id)
+            if not session:
+                await update.message.reply_text(
+                    "❌ Session tidak ditemukan. Silakan mulai ulang dengan /start"
+                )
+                return ConversationHandler.END
+                
+            self.session_service.update_session(user_id, {'report_type': message_text})
+            
+            keyboard = [[KeyboardButton("❌ Batalkan")]]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+            
+            await update.message.reply_text(
+                f"✅ Jenis laporan: {message_text}\n\n"
+                f"🎫 Silakan masukkan ID Ticket:",
+                reply_markup=reply_markup
+            )
+            return INPUT_ID
+            
+        except Exception as e:
+            print(f"Error in select_report_type: {e}")
+            await update.message.reply_text(
+                "❌ Terjadi kesalahan. Silakan mulai ulang dengan /start"
+            )
+            return ConversationHandler.END
 
     async def input_id(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle ID input"""
-        user_id = update.effective_user.id
-        ticket_id = update.message.text.strip()
-        
-        if ticket_id == "❌ Batalkan":
-            self.delete_folder_if_exists(user_id)
-            self.session_service.end_session(user_id)
-            await update.message.reply_text(
-                "Laporan dibatalkan.",
-                reply_markup=ReplyKeyboardMarkup([[KeyboardButton("/start")]], resize_keyboard=True)
+        try:
+            user_id = update.effective_user.id
+            ticket_id = update.message.text.strip()
+            
+            print(f"User {user_id} entered ticket ID: '{ticket_id}'")  # Debug log
+            
+            if ticket_id == "❌ Batalkan":
+                return await self.cancel_report(update, context)
+            
+            if not ticket_id or len(ticket_id) < 2:
+                keyboard = [[KeyboardButton("❌ Batalkan")]]
+                reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+                await update.message.reply_text(
+                    "❌ ID Ticket tidak valid. Silakan masukkan ID Ticket yang benar:",
+                    reply_markup=reply_markup
+                )
+                return INPUT_ID
+            
+            # Get and validate session
+            session = self.session_service.get_session(user_id)
+            if not session:
+                await update.message.reply_text(
+                    "❌ Session tidak ditemukan. Silakan mulai ulang dengan /start"
+                )
+                return ConversationHandler.END
+            
+            # Update session
+            self.session_service.update_session(user_id, {'id_ticket': ticket_id})
+            
+            # Buat folder di Google Drive
+            folder_name = f"{session['report_type']}_{ticket_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            folder_id = self.google_service.create_folder(folder_name)
+            
+            if not folder_id:
+                await update.message.reply_text(
+                    "❌ Gagal membuat folder di Google Drive. Silakan coba lagi."
+                )
+                return INPUT_ID
+            
+            self.session_service.update_session(user_id, {'folder_id': folder_id})
+            
+            # Kirim format pengisian
+            folder_link = self.google_service.get_folder_link(folder_id)
+            report_format = (
+                f"✅ Folder berhasil dibuat!\n\n"
+                f"📋 **Detail Laporan:**\n"
+                f"• Report Type: {session['report_type']}\n"
+                f"• ID Ticket: {ticket_id}\n"
+                f"• Folder Drive: {folder_link}\n\n"
+                f"📝 **Format Laporan** (Salin dan isi):\n\n"
+                f"Customer Name: \n"
+                f"Service No: \n"
+                f"Segment: \n"
+                f"Teknisi 1: \n"
+                f"Teknisi 2: \n"
+                f"STO: \n"
+                f"Valins ID: "
             )
-            return ConversationHandler.END
-        
-        if not ticket_id:
-            await update.message.reply_text("ID Ticket tidak boleh kosong. Silakan masukkan ID Ticket:")
+            
+            keyboard = [[KeyboardButton("❌ Batalkan")]]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+            
+            await update.message.reply_text(report_format, reply_markup=reply_markup)
+            return INPUT_DATA
+            
+        except Exception as e:
+            print(f"Error in input_id: {e}")
+            await update.message.reply_text(
+                "❌ Terjadi kesalahan. Silakan coba lagi."
+            )
             return INPUT_ID
-        
-        # Update session
-        session = self.session_service.get_session(user_id)
-        self.session_service.update_session(user_id, {'id_ticket': ticket_id})
-        
-        # Buat folder di Google Drive
-        folder_name = f"{session['report_type']}_{ticket_id}"
-        folder_id = self.google_service.create_folder(folder_name)
-        
-        if not folder_id:
-            await update.message.reply_text("Gagal membuat folder. Silakan coba lagi.")
-            return INPUT_ID
-        
-        self.session_service.update_session(user_id, {'folder_id': folder_id})
-        
-        # Kirim format pengisian
-        folder_link = self.google_service.get_folder_link(folder_id)
-        report_format = (
-            f"📋 Format Berhasil Dibuat\n\n"
-            f"Report Type : {session['report_type']}\n"
-            f"ID Ticket : {ticket_id}\n"
-            f"Folder Drive : {folder_link}\n"
-            f"-------------------------------------------------------------\n"
-            f"Salin Format Laporan dan isi dibawah ini :\n\n"
-            f"Customer Name : \n"
-            f"Service No : \n"
-            f"Segment : \n"
-            f"Teknisi 1 : \n"
-            f"Teknisi 2 : \n"
-            f"STO : \n"
-            f"Valins ID : "
-        )
-        
-        await update.message.reply_text(
-            report_format,
-            reply_markup=ReplyKeyboardMarkup([[KeyboardButton("❌ Batalkan")]], resize_keyboard=True)
-        )
-        return INPUT_DATA
 
     async def input_data(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle data input"""
-        user_id = update.effective_user.id
-        message_text = update.message.text
-        
-        if message_text == "❌ Batalkan":
-            self.delete_folder_if_exists(user_id)
-            self.session_service.end_session(user_id)
+        try:
+            user_id = update.effective_user.id
+            message_text = update.message.text.strip()
+            
+            print(f"User {user_id} entered data: {message_text[:100]}...")  # Debug log
+            
+            if message_text == "❌ Batalkan":
+                return await self.cancel_report(update, context)
+            
+            # Parse data dari format
+            data = {}
+            lines = message_text.split('\n')
+            
+            for line in lines:
+                if ':' in line and line.strip():
+                    key, value = line.split(':', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    if key and value:  # Only add if both key and value exist
+                        data[key] = value
+            
+            print(f"Parsed data: {data}")  # Debug log
+            
+            # Validasi data yang diperlukan
+            required_fields = ['Customer Name', 'Service No', 'Segment', 'Teknisi 1', 'Teknisi 2', 'STO', 'Valins ID']
+            missing_fields = [field for field in required_fields if field not in data or not data[field]]
+            
+            if missing_fields:
+                keyboard = [[KeyboardButton("❌ Batalkan")]]
+                reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+                await update.message.reply_text(
+                    f"❌ **Data tidak lengkap!**\n\n"
+                    f"Field yang belum diisi: **{', '.join(missing_fields)}**\n\n"
+                    f"Silakan kirim ulang format dengan data yang lengkap.\n\n"
+                    f"**Contoh format yang benar:**\n"
+                    f"Customer Name: John Doe\n"
+                    f"Service No: 12345\n"
+                    f"Segment: Enterprise\n"
+                    f"Teknisi 1: Budi\n"
+                    f"Teknisi 2: Sari\n"
+                    f"STO: Jakarta\n"
+                    f"Valins ID: VAL123",
+                    reply_markup=reply_markup
+                )
+                return INPUT_DATA
+            
+            # Get session and validate
+            session = self.session_service.get_session(user_id)
+            if not session:
+                await update.message.reply_text(
+                    "❌ Session tidak ditemukan. Silakan mulai ulang dengan /start"
+                )
+                return ConversationHandler.END
+            
+            # Simpan data ke session
+            report_data = {
+                'report_type': session['report_type'],
+                'id_ticket': session['id_ticket'],
+                'folder_link': self.google_service.get_folder_link(session['folder_id']),
+                'reported': datetime.now().strftime("%d/%m/%Y %H:%M"),
+                'customer_name': data['Customer Name'],
+                'service_no': data['Service No'],
+                'segment': data['Segment'],
+                'teknisi_1': data['Teknisi 1'],
+                'teknisi_2': data['Teknisi 2'],
+                'sto': data['STO'],
+                'valins_id': data['Valins ID']
+            }
+            
+            self.session_service.update_session(user_id, {'data': report_data})
+            
+            # Tampilkan konfirmasi
+            return await self.show_confirmation(update, context)
+            
+        except Exception as e:
+            print(f"Error in input_data: {e}")
+            keyboard = [[KeyboardButton("❌ Batalkan")]]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
             await update.message.reply_text(
-                "Laporan dibatalkan.",
-                reply_markup=ReplyKeyboardMarkup([[KeyboardButton("/start")]], resize_keyboard=True)
-            )
-            return ConversationHandler.END
-        
-        # Parse data dari format
-        data = {}
-        lines = message_text.split('\n')
-        
-        # Cari bagian setelah "Salin Format Laporan dan isi dibawah ini :"
-        start_idx = next((i for i, line in enumerate(lines) if "Salin Format Laporan" in line), len(lines))
-        
-        for line in lines[start_idx+1:]:
-            if ':' in line:
-                key, value = line.split(':', 1)
-                data[key.strip()] = value.strip()
-        
-        # Validasi data yang diperlukan
-        required_fields = ['Customer Name', 'Service No', 'Segment', 'Teknisi 1', 'Teknisi 2', 'STO', 'Valins ID']
-        missing_fields = [field for field in required_fields if field not in data or not data[field]]
-        
-        if missing_fields:
-            await update.message.reply_text(
-                f"Data tidak lengkap. Field berikut harus diisi: {', '.join(missing_fields)}\n\n"
-                f"Silakan kirim ulang format yang sudah diisi dengan lengkap."
+                "❌ Terjadi kesalahan saat memproses data. Silakan coba lagi:",
+                reply_markup=reply_markup
             )
             return INPUT_DATA
-        
-        # Simpan data ke session
-        session = self.session_service.get_session(user_id)
-        report_data = {
-            'report_type': session['report_type'],
-            'id_ticket': session['id_ticket'],
-            'folder_link': self.google_service.get_folder_link(session['folder_id']),
-            'reported': datetime.now().strftime("%d/%m/%Y %H:%M"),
-            'customer_name': data['Customer Name'],
-            'service_no': data['Service No'],
-            'segment': data['Segment'],
-            'teknisi_1': data['Teknisi 1'],
-            'teknisi_2': data['Teknisi 2'],
-            'sto': data['STO'],
-            'valins_id': data['Valins ID']
-        }
-        
-        self.session_service.update_session(user_id, {'data': report_data})
-        
-        # Tampilkan konfirmasi dengan info foto
-        session = self.session_service.get_session(user_id)
-        photo_info = ""
-        if session['photos']:
-            photo_info = f"\n📷 Foto Terupload: {len(session['photos'])} foto\n"
-            for i, photo in enumerate(session['photos'], 1):
-                photo_info += f"   {i}. {photo['name']}\n"
-        else:
-            photo_info = "\n📷 Foto Eviden: Belum ada foto terupload\n"
-        
-        confirmation_text = (
-            f"📋 Konfirmasi Data Laporan\n\n"
-            f"Report Type: {report_data['report_type']}\n"
-            f"ID Ticket: {report_data['id_ticket']}\n"
-            f"Customer Name: {report_data['customer_name']}\n"
-            f"Service No: {report_data['service_no']}\n"
-            f"Segment: {report_data['segment']}\n"
-            f"Teknisi 1: {report_data['teknisi_1']}\n"
-            f"Teknisi 2: {report_data['teknisi_2']}\n"
-            f"STO: {report_data['sto']}\n"
-            f"Valins ID: {report_data['valins_id']}"
-            f"{photo_info}\n"
-            f"Pilih tindakan:"
-        )
-        
-        keyboard = [
-            [KeyboardButton("✅ Kirim Laporan"), KeyboardButton("📝 Edit Data")],
-            [KeyboardButton("📷 Upload Foto Eviden"), KeyboardButton("❌ Batalkan")]
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-        
-        await update.message.reply_text(confirmation_text, reply_markup=reply_markup)
-        return CONFIRM_DATA
+
+    async def show_confirmation(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show confirmation screen"""
+        try:
+            user_id = update.effective_user.id
+            session = self.session_service.get_session(user_id)
+            
+            if not session or not session.get('data'):
+                await update.message.reply_text(
+                    "❌ Data tidak ditemukan. Silakan mulai ulang dengan /start"
+                )
+                return ConversationHandler.END
+            
+            report_data = session['data']
+            
+            # Info foto
+            photo_info = ""
+            if session.get('photos') and len(session['photos']) > 0:
+                photo_info = f"\n📷 **Foto Eviden:** {len(session['photos'])} foto\n"
+                for i, photo in enumerate(session['photos'], 1):
+                    photo_info += f"   {i}. {photo['name']}\n"
+            else:
+                photo_info = "\n📷 **Foto Eviden:** Belum ada foto\n"
+            
+            confirmation_text = (
+                f"📋 **KONFIRMASI DATA LAPORAN**\n\n"
+                f"🏷️ **Report Type:** {report_data['report_type']}\n"
+                f"🎫 **ID Ticket:** {report_data['id_ticket']}\n"
+                f"👤 **Customer Name:** {report_data['customer_name']}\n"
+                f"📞 **Service No:** {report_data['service_no']}\n"
+                f"🏢 **Segment:** {report_data['segment']}\n"
+                f"🔧 **Teknisi 1:** {report_data['teknisi_1']}\n"
+                f"🔧 **Teknisi 2:** {report_data['teknisi_2']}\n"
+                f"🏪 **STO:** {report_data['sto']}\n"
+                f"🆔 **Valins ID:** {report_data['valins_id']}"
+                f"{photo_info}\n"
+                f"Pilih tindakan selanjutnya:"
+            )
+            
+            keyboard = [
+                [KeyboardButton("✅ Kirim Laporan"), KeyboardButton("📝 Edit Data")],
+                [KeyboardButton("📷 Upload Foto"), KeyboardButton("❌ Batalkan")]
+            ]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+            
+            await update.message.reply_text(confirmation_text, reply_markup=reply_markup)
+            return CONFIRM_DATA
+            
+        except Exception as e:
+            print(f"Error in show_confirmation: {e}")
+            await update.message.reply_text(
+                "❌ Terjadi kesalahan. Silakan mulai ulang dengan /start"
+            )
+            return ConversationHandler.END
 
     async def confirm_data(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle data confirmation"""
-        user_id = update.effective_user.id
-        choice = update.message.text
-        session = self.session_service.get_session(user_id)
-        
-        if choice == "✅ Kirim Laporan":
+        try:
+            user_id = update.effective_user.id
+            choice = update.message.text.strip()
+            session = self.session_service.get_session(user_id)
+            
+            print(f"User {user_id} chose: '{choice}'")  # Debug log
+            
+            if not session:
+                await update.message.reply_text(
+                    "❌ Session tidak ditemukan. Silakan mulai ulang dengan /start"
+                )
+                return ConversationHandler.END
+            
+            if choice == "✅ Kirim Laporan":
+                return await self.send_report(update, context)
+                
+            elif choice == "📝 Edit Data":
+                return await self.edit_data(update, context)
+                
+            elif choice == "📷 Upload Foto":
+                return await self.start_photo_upload(update, context)
+                
+            elif choice == "❌ Batalkan":
+                return await self.cancel_report(update, context)
+            
+            else:
+                # Invalid choice
+                await update.message.reply_text(
+                    "❌ Pilihan tidak valid. Silakan pilih salah satu opsi yang tersedia."
+                )
+                return await self.show_confirmation(update, context)
+                
+        except Exception as e:
+            print(f"Error in confirm_data: {e}")
+            await update.message.reply_text(
+                "❌ Terjadi kesalahan. Silakan coba lagi."
+            )
+            return CONFIRM_DATA
+
+    async def send_report(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Send report to spreadsheet"""
+        try:
+            user_id = update.effective_user.id
+            session = self.session_service.get_session(user_id)
+            
+            if not session or not session.get('data'):
+                await update.message.reply_text(
+                    "❌ Data tidak ditemukan. Silakan mulai ulang dengan /start"
+                )
+                return ConversationHandler.END
+            
+            await update.message.reply_text("⏳ Mengirim laporan ke spreadsheet...")
+            
             # Kirim ke spreadsheet
             success = self.google_service.update_spreadsheet(
                 self.spreadsheet_id,
@@ -242,10 +403,13 @@ class TelegramBot:
             )
             
             if success:
-                photo_count = len(session['photos'])
-                success_message = "✅ Laporan berhasil dikirim ke spreadsheet!"
+                photo_count = len(session.get('photos', []))
+                success_message = "✅ **LAPORAN BERHASIL DIKIRIM!**\n\n"
+                success_message += f"📋 Report Type: {session['data']['report_type']}\n"
+                success_message += f"🎫 ID Ticket: {session['data']['id_ticket']}\n"
                 if photo_count > 0:
-                    success_message += f"\n📷 {photo_count} foto eviden tersimpan di folder Drive."
+                    success_message += f"📷 {photo_count} foto eviden tersimpan di folder Drive.\n"
+                success_message += "\nTerima kasih! 🙏"
                 
                 await update.message.reply_text(
                     success_message,
@@ -253,200 +417,311 @@ class TelegramBot:
                 )
             else:
                 await update.message.reply_text(
-                    "❌ Gagal mengirim laporan. Silakan coba lagi.",
+                    "❌ **Gagal mengirim laporan ke spreadsheet.**\n"
+                    "Silakan coba lagi atau hubungi admin.",
                     reply_markup=ReplyKeyboardMarkup([[KeyboardButton("/start")]], resize_keyboard=True)
                 )
             
             self.session_service.end_session(user_id)
             return ConversationHandler.END
             
-        elif choice == "📝 Edit Data":
+        except Exception as e:
+            print(f"Error in send_report: {e}")
+            await update.message.reply_text(
+                "❌ Terjadi kesalahan saat mengirim laporan. Silakan coba lagi."
+            )
+            return CONFIRM_DATA
+
+    async def edit_data(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Edit report data"""
+        try:
+            user_id = update.effective_user.id
+            session = self.session_service.get_session(user_id)
+            
+            if not session or not session.get('data'):
+                await update.message.reply_text(
+                    "❌ Data tidak ditemukan. Silakan mulai ulang dengan /start"
+                )
+                return ConversationHandler.END
+            
             # Kirim ulang format untuk diedit
+            report_data = session['data']
             report_format = (
-                f"📝 Edit Data Laporan\n\n"
-                f"Report Type : {session['data']['report_type']}\n"
-                f"ID Ticket : {session['data']['id_ticket']}\n"
-                f"Folder Drive : {session['data']['folder_link']}\n"
-                f"-------------------------------------------------------------\n"
-                f"Salin Format Laporan dan edit dibawah ini :\n\n"
-                f"Customer Name : {session['data']['customer_name']}\n"
-                f"Service No : {session['data']['service_no']}\n"
-                f"Segment : {session['data']['segment']}\n"
-                f"Teknisi 1 : {session['data']['teknisi_1']}\n"
-                f"Teknisi 2 : {session['data']['teknisi_2']}\n"
-                f"STO : {session['data']['sto']}\n"
-                f"Valins ID : {session['data']['valins_id']}"
+                f"📝 **EDIT DATA LAPORAN**\n\n"
+                f"📋 Report Type: {report_data['report_type']}\n"
+                f"🎫 ID Ticket: {report_data['id_ticket']}\n"
+                f"📁 Folder Drive: {report_data['folder_link']}\n\n"
+                f"📝 **Salin format di bawah dan edit sesuai kebutuhan:**\n\n"
+                f"Customer Name: {report_data['customer_name']}\n"
+                f"Service No: {report_data['service_no']}\n"
+                f"Segment: {report_data['segment']}\n"
+                f"Teknisi 1: {report_data['teknisi_1']}\n"
+                f"Teknisi 2: {report_data['teknisi_2']}\n"
+                f"STO: {report_data['sto']}\n"
+                f"Valins ID: {report_data['valins_id']}"
             )
             
-            await update.message.reply_text(
-                report_format,
-                reply_markup=ReplyKeyboardMarkup([[KeyboardButton("❌ Batalkan")]], resize_keyboard=True)
-            )
+            keyboard = [[KeyboardButton("❌ Batalkan")]]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+            
+            await update.message.reply_text(report_format, reply_markup=reply_markup)
             return INPUT_DATA
             
-        elif choice == "📷 Upload Foto Eviden":
+        except Exception as e:
+            print(f"Error in edit_data: {e}")
             await update.message.reply_text(
-                "📷 **Upload Foto Eviden**\n\n"
-                "⚠️ **PENTING - Cara Upload Foto:**\n"
-                "• **Satu foto**: Kirim 1 foto → input deskripsi custom\n"
-                "• **Beberapa foto sekaligus**: Deskripsi akan otomatis random (foto_1, foto_2, dst)\n\n"
+                "❌ Terjadi kesalahan. Silakan coba lagi."
+            )
+            return CONFIRM_DATA
+
+    async def start_photo_upload(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start photo upload process"""
+        try:
+            keyboard = [
+                [KeyboardButton("📸 Upload Satu-Satu (Custom Nama)")],
+                [KeyboardButton("📷 Upload Banyak (Auto Nama)")],
+                [KeyboardButton("🔙 Kembali"), KeyboardButton("❌ Batalkan")]
+            ]
+            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+            
+            await update.message.reply_text(
+                "📷 **UPLOAD FOTO EVIDEN**\n\n"
+                "⚠️ **PENTING - Cara Upload:**\n"
+                "• **Satu-satu**: Upload 1 foto → input nama custom\n"
+                "• **Banyak**: Upload beberapa foto → nama otomatis\n\n"
                 "📤 **Pilih metode upload:**",
-                reply_markup=ReplyKeyboardMarkup([
-                    [KeyboardButton("📸 Upload Satu-Satu (Custom Nama)")],
-                    [KeyboardButton("📷 Upload Banyak (Auto Nama)")],
-                    [KeyboardButton("❌ Batalkan")]
-                ], resize_keyboard=True)
+                reply_markup=reply_markup
             )
             return UPLOAD_PHOTO
             
-        elif choice == "❌ Batalkan":
-            self.delete_folder_if_exists(user_id)
-            self.session_service.end_session(user_id)
-            await update.message.reply_text(
-                "Laporan dibatalkan.",
-                reply_markup=ReplyKeyboardMarkup([[KeyboardButton("/start")]], resize_keyboard=True)
-            )
-            return ConversationHandler.END
+        except Exception as e:
+            print(f"Error in start_photo_upload: {e}")
+            return await self.show_confirmation(update, context)
 
     async def upload_photo(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle photo upload state"""
-        user_id = update.effective_user.id
-        message_text = update.message.text
-        
-        # Handle pilihan metode upload
-        if message_text == "📸 Upload Satu-Satu (Custom Nama)":
-            # Set mode upload satu-satu
-            context.user_data['upload_mode'] = 'single'
-            await update.message.reply_text(
-                "📸 **Mode Upload Satu-Satu**\n\n"
-                "Kirimkan foto satu per satu. Setiap foto akan diminta deskripsi custom.\n\n"
-                "Kirimkan foto pertama:",
-                reply_markup=ReplyKeyboardMarkup([
-                    [KeyboardButton("Selesai Upload"), KeyboardButton("❌ Batalkan")]
-                ], resize_keyboard=True)
-            )
-            return UPLOAD_PHOTO
+        """Handle photo upload process"""
+        try:
+            user_id = update.effective_user.id
+            message_text = update.message.text.strip() if update.message.text else ""
             
-        elif message_text == "📷 Upload Banyak (Auto Nama)":
-            # Set mode upload banyak
-            context.user_data['upload_mode'] = 'multiple'
-            await update.message.reply_text(
-                "📷 **Mode Upload Banyak**\n\n"
-                "Kirimkan beberapa foto sekaligus. Nama file akan otomatis: foto_1, foto_2, dst.\n\n"
-                "Kirimkan foto-foto Anda:",
-                reply_markup=ReplyKeyboardMarkup([
-                    [KeyboardButton("Selesai Upload"), KeyboardButton("❌ Batalkan")]
-                ], resize_keyboard=True)
-            )
-            return UPLOAD_PHOTO
-        
-        if message_text == "Selesai Upload":
-            # Reset upload mode
-            if 'upload_mode' in context.user_data:
-                del context.user_data['upload_mode']
+            # Handle menu choices
+            if message_text == "📸 Upload Satu-Satu (Custom Nama)":
+                context.user_data['upload_mode'] = 'single'
+                keyboard = [
+                    [KeyboardButton("✅ Selesai Upload"), KeyboardButton("❌ Batalkan")]
+                ]
+                reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+                
+                await update.message.reply_text(
+                    "📸 **Mode Upload Satu-Satu**\n\n"
+                    "Kirimkan foto satu per satu.\n"
+                    "Setiap foto akan diminta nama custom.\n\n"
+                    "📤 Kirimkan foto pertama:",
+                    reply_markup=reply_markup
+                )
+                return UPLOAD_PHOTO
+                
+            elif message_text == "📷 Upload Banyak (Auto Nama)":
+                context.user_data['upload_mode'] = 'multiple'
+                keyboard = [
+                    [KeyboardButton("✅ Selesai Upload"), KeyboardButton("❌ Batalkan")]
+                ]
+                reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+                
+                await update.message.reply_text(
+                    "📷 **Mode Upload Banyak**\n\n"
+                    "Kirimkan beberapa foto sekaligus.\n"
+                    "Nama akan otomatis: foto_1, foto_2, dst.\n\n"
+                    "📤 Kirimkan foto-foto Anda:",
+                    reply_markup=reply_markup
+                )
+                return UPLOAD_PHOTO
             
-            # Kembali ke konfirmasi data dengan info foto terbaru
-            session = self.session_service.get_session(user_id)
-            photo_info = ""
-            if session['photos']:
-                photo_info = f"\n📷 Foto Terupload: {len(session['photos'])} foto\n"
-                for i, photo in enumerate(session['photos'], 1):
-                    photo_info += f"   {i}. {photo['name']}\n"
+            elif message_text == "✅ Selesai Upload":
+                # Reset upload mode
+                if 'upload_mode' in context.user_data:
+                    del context.user_data['upload_mode']
+                return await self.show_confirmation(update, context)
+            
+            elif message_text == "🔙 Kembali":
+                return await self.show_confirmation(update, context)
+                
+            elif message_text == "❌ Batalkan":
+                return await self.cancel_report(update, context)
+            
+            # Handle photo upload
+            elif update.message.photo:
+                return await self.process_photo(update, context)
+            
             else:
-                photo_info = "\n📷 Foto Eviden: Belum ada foto terupload\n"
-            
-            confirmation_text = (
-                f"📋 Konfirmasi Data Laporan\n\n"
-                f"Report Type: {session['data']['report_type']}\n"
-                f"ID Ticket: {session['data']['id_ticket']}\n"
-                f"Customer Name: {session['data']['customer_name']}\n"
-                f"Service No: {session['data']['service_no']}\n"
-                f"Segment: {session['data']['segment']}\n"
-                f"Teknisi 1: {session['data']['teknisi_1']}\n"
-                f"Teknisi 2: {session['data']['teknisi_2']}\n"
-                f"STO: {session['data']['sto']}\n"
-                f"Valins ID: {session['data']['valins_id']}"
-                f"{photo_info}\n"
-                f"Pilih tindakan:"
-            )
-            
-            keyboard = [
-                [KeyboardButton("✅ Kirim Laporan"), KeyboardButton("📝 Edit Data")],
-                [KeyboardButton("📷 Upload Foto Eviden"), KeyboardButton("❌ Batalkan")]
-            ]
-            reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-            
-            await update.message.reply_text(confirmation_text, reply_markup=reply_markup)
-            return CONFIRM_DATA
-        
-        elif message_text == "❌ Batalkan":
-            # Reset upload mode
-            if 'upload_mode' in context.user_data:
-                del context.user_data['upload_mode']
-            self.delete_folder_if_exists(user_id)
-            self.session_service.end_session(user_id)
+                await update.message.reply_text(
+                    "❌ Pilihan tidak valid atau silakan kirim foto."
+                )
+                return UPLOAD_PHOTO
+                
+        except Exception as e:
+            print(f"Error in upload_photo: {e}")
             await update.message.reply_text(
-                "Laporan dibatalkan.",
-                reply_markup=ReplyKeyboardMarkup([[KeyboardButton("/start")]], resize_keyboard=True)
+                "❌ Terjadi kesalahan saat upload foto. Silakan coba lagi."
             )
-            return ConversationHandler.END
-        
-        # Handle photo message
-        if update.message.photo:
+            return UPLOAD_PHOTO
+
+    async def process_photo(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Process uploaded photo"""
+        try:
+            user_id = update.effective_user.id
             upload_mode = context.user_data.get('upload_mode', 'single')
             
             if upload_mode == 'single':
-                # Mode upload satu-satu - minta deskripsi
+                # Store photo for description input
                 photo = update.message.photo[-1]
                 context.user_data['temp_photo'] = photo
                 
+                keyboard = [[KeyboardButton("❌ Batalkan")]]
+                reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+                
                 await update.message.reply_text(
-                    "📝 Masukkan deskripsi untuk foto ini (akan digunakan sebagai nama file):\n\n"
-                    "Contoh: 'foto_sebelum_perbaikan', 'hasil_instalasi', dll",
-                    reply_markup=ReplyKeyboardMarkup([
-                        [KeyboardButton("❌ Batalkan")]
-                    ], resize_keyboard=True)
+                    "📝 **Masukkan nama untuk foto ini:**\n\n"
+                    "Contoh: 'sebelum_perbaikan', 'hasil_instalasi', dll\n\n"
+                    "💡 Nama akan digunakan sebagai nama file",
+                    reply_markup=reply_markup
+                )
+                return INPUT_PHOTO_DESC
+                
+            else:  # multiple mode
+                return await self.save_photo_auto(update, context)
+                
+        except Exception as e:
+            print(f"Error in process_photo: {e}")
+            await update.message.reply_text(
+                "❌ Gagal memproses foto. Silakan coba lagi."
+            )
+            return UPLOAD_PHOTO
+
+    async def save_photo_auto(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Save photo with automatic naming"""
+        try:
+            user_id = update.effective_user.id
+            session = self.session_service.get_session(user_id)
+            
+            if not session or not session.get('folder_id'):
+                await update.message.reply_text(
+                    "❌ Session tidak valid. Silakan mulai ulang."
+                )
+                return ConversationHandler.END
+            
+            photo = update.message.photo[-1]
+            file = await context.bot.get_file(photo.file_id)
+            
+            # Generate automatic filename
+            photo_count = len(session.get('photos', [])) + 1
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"foto_{photo_count}_{timestamp}.jpg"
+            filepath = f"temp_{filename}"
+            
+            await update.message.reply_text("⏳ Mengupload foto...")
+            await file.download_to_drive(filepath)
+            
+            file_id = self.google_service.upload_to_drive(filepath, filename, session['folder_id'])
+            
+            # Cleanup temp file
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            
+            if file_id:
+                # Add to photo list
+                if 'photos' not in session:
+                    session['photos'] = []
+                session['photos'].append({
+                    'id': file_id,
+                    'name': filename
+                })
+                
+                keyboard = [
+                    [KeyboardButton("✅ Selesai Upload"), KeyboardButton("❌ Batalkan")]
+                ]
+                reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+                
+                await update.message.reply_text(
+                    f"✅ **Foto berhasil diupload!**\n"
+                    f"📄 Nama file: {filename}\n"
+                    f"📷 Total foto: {len(session['photos'])}\n\n"
+                    f"Kirim foto lain atau pilih 'Selesai Upload'",
+                    reply_markup=reply_markup
+                )
+            else:
+                await update.message.reply_text(
+                    "❌ Gagal mengupload foto. Silakan coba lagi."
+                )
+            
+            return UPLOAD_PHOTO
+            
+        except Exception as e:
+            print(f"Error in save_photo_auto: {e}")
+            await update.message.reply_text(
+                "❌ Terjadi kesalahan saat mengupload foto."
+            )
+            return UPLOAD_PHOTO
+
+    async def input_photo_desc(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle photo description input"""
+        try:
+            user_id = update.effective_user.id
+            description = update.message.text.strip()
+            
+            if description == "❌ Batalkan":
+                return await self.cancel_report(update, context)
+            
+            if not description or len(description) < 2:
+                await update.message.reply_text(
+                    "❌ Nama foto terlalu pendek. Silakan masukkan nama yang lebih deskriptif:"
                 )
                 return INPUT_PHOTO_DESC
             
-            elif upload_mode == 'multiple':
-                # Mode upload banyak - langsung proses dengan nama auto
-                session = self.session_service.get_session(user_id)
-                if not session or not session.get('folder_id'):
-                    await update.message.reply_text(
-                        "❌ Session tidak valid. Silakan mulai ulang.",
-                        reply_markup=ReplyKeyboardMarkup([[KeyboardButton("/start")]], resize_keyboard=True)
-                    )
-                    return ConversationHandler.END
-                
-                photo = update.message.photo[-1]
+            # Clean description for filename
+            clean_desc = re.sub(r'[^\w\s-]', '', description).strip()
+            clean_desc = re.sub(r'[\s]+', '_', clean_desc)
+            
+            session = self.session_service.get_session(user_id)
+            temp_photo = context.user_data.get('temp_photo')
+            
+            if temp_photo and session and session.get('folder_id'):
                 try:
-                    file = await context.bot.get_file(photo.file_id)
+                    file = await context.bot.get_file(temp_photo.file_id)
                     
-                    # Generate nama otomatis
-                    photo_count = len(session['photos']) + 1
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"foto_{photo_count}_{timestamp}.jpg"
+                    filename = f"{clean_desc}_{timestamp}.jpg"
                     filepath = f"temp_{filename}"
                     
+                    await update.message.reply_text("⏳ Mengupload foto...")
                     await file.download_to_drive(filepath)
                     
                     file_id = self.google_service.upload_to_drive(filepath, filename, session['folder_id'])
                     
+                    # Cleanup temp file
                     if os.path.exists(filepath):
                         os.remove(filepath)
                     
                     if file_id:
-                        # Tambahkan ke daftar foto
+                        # Add to photo list
+                        if 'photos' not in session:
+                            session['photos'] = []
                         session['photos'].append({
                             'id': file_id,
                             'name': filename
                         })
                         
+                        keyboard = [
+                            [KeyboardButton("✅ Selesai Upload"), KeyboardButton("❌ Batalkan")]
+                        ]
+                        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+                        
                         await update.message.reply_text(
-                            f"✅ Foto '{filename}' berhasil diupload!\n\n"
-                            f"📷 Total foto terupload: {len(session['photos'])}\n\n"
-                            f"Kirim foto lain atau ketik 'Selesai Upload'."
+                            f"✅ **Foto berhasil diupload!**\n"
+                            f"📄 Nama file: {filename}\n"
+                            f"📷 Total foto: {len(session['photos'])}\n\n"
+                            f"Kirim foto lain atau pilih 'Selesai Upload'",
+                            reply_markup=reply_markup
                         )
                     else:
                         await update.message.reply_text(
@@ -454,111 +729,71 @@ class TelegramBot:
                         )
                         
                 except Exception as e:
-                    print(f"Error uploading photo: {e}")
+                    print(f"Error uploading photo with custom name: {e}")
                     await update.message.reply_text(
-                        "❌ Terjadi kesalahan saat mengupload foto. Silakan coba lagi."
+                        "❌ Terjadi kesalahan saat mengupload foto."
                     )
-                
-                return UPLOAD_PHOTO
-        else:
-            # Belum pilih mode upload
-            if 'upload_mode' not in context.user_data:
-                await update.message.reply_text(
-                    "Silakan pilih metode upload terlebih dahulu."
-                )
-                return UPLOAD_PHOTO
-            else:
-                await update.message.reply_text(
-                    "Silakan kirim foto atau pilih 'Selesai Upload' jika sudah selesai."
-                )
-                return UPLOAD_PHOTO
-
-    async def input_photo_desc(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle photo description input"""
-        user_id = update.effective_user.id
-        description = update.message.text.strip()
-        
-        if description == "❌ Batalkan":
-            # Kembali ke upload photo mode single
-            await update.message.reply_text(
-                "📸 **Mode Upload Satu-Satu**\n\n"
-                "Kirimkan foto satu per satu. Setiap foto akan diminta deskripsi custom.\n\n"
-                "Kirimkan foto:",
-                reply_markup=ReplyKeyboardMarkup([
-                    [KeyboardButton("Selesai Upload"), KeyboardButton("❌ Batalkan")]
-                ], resize_keyboard=True)
-            )
+            
+            # Clear temp photo
+            if 'temp_photo' in context.user_data:
+                del context.user_data['temp_photo']
+            
             return UPLOAD_PHOTO
-        
-        if not description:
-            await update.message.reply_text("Deskripsi tidak boleh kosong. Silakan masukkan deskripsi foto:")
+            
+        except Exception as e:
+            print(f"Error in input_photo_desc: {e}")
+            await update.message.reply_text(
+                "❌ Terjadi kesalahan. Silakan coba lagi."
+            )
             return INPUT_PHOTO_DESC
-        
-        # Clean description untuk nama file
-        clean_desc = re.sub(r'[^\w\s-]', '', description).strip()
-        clean_desc = re.sub(r'[\s]+', '_', clean_desc)
-        
-        # Process foto yang disimpan sementara
-        session = self.session_service.get_session(user_id)
-        temp_photo = context.user_data.get('temp_photo')
-        
-        if temp_photo and session and session.get('folder_id'):
-            try:
-                file = await context.bot.get_file(temp_photo.file_id)
-                
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"{clean_desc}_{timestamp}.jpg"
-                filepath = f"temp_{filename}"
-                
-                await file.download_to_drive(filepath)
-                
-                file_id = self.google_service.upload_to_drive(filepath, filename, session['folder_id'])
-                
-                if os.path.exists(filepath):
-                    os.remove(filepath)
-                
-                if file_id:
-                    # Tambahkan ke daftar foto
-                    session['photos'].append({
-                        'id': file_id,
-                        'name': filename
-                    })
-                    
-                    await update.message.reply_text(
-                        f"✅ Foto '{filename}' berhasil diupload!\n\n"
-                        f"📷 Total foto terupload: {len(session['photos'])}\n\n"
-                        f"Kirim foto lain atau ketik 'Selesai Upload'.",
-                        reply_markup=ReplyKeyboardMarkup([
-                            [KeyboardButton("Selesai Upload"), KeyboardButton("❌ Batalkan")]
-                        ], resize_keyboard=True)
-                    )
-                else:
-                    await update.message.reply_text(
-                        "❌ Gagal mengupload foto. Silakan coba lagi.",
-                        reply_markup=ReplyKeyboardMarkup([
-                            [KeyboardButton("Selesai Upload"), KeyboardButton("❌ Batalkan")]
-                        ], resize_keyboard=True)
-                    )
-            except Exception as e:
-                print(f"Error uploading photo: {e}")
-                await update.message.reply_text(
-                    "❌ Terjadi kesalahan saat mengupload foto. Silakan coba lagi.",
-                    reply_markup=ReplyKeyboardMarkup([
-                        [KeyboardButton("Selesai Upload"), KeyboardButton("❌ Batalkan")]
-                    ], resize_keyboard=True)
-                )
-        
-        # Clear temp photo
-        if 'temp_photo' in context.user_data:
-            del context.user_data['temp_photo']
-        
-        return UPLOAD_PHOTO
+
+    async def cancel_report(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Cancel current report and cleanup"""
+        try:
+            user_id = update.effective_user.id
+            
+            # Delete folder if exists
+            self.delete_folder_if_exists(user_id)
+            
+            # End session
+            self.session_service.end_session(user_id)
+            
+            # Clear context data
+            context.user_data.clear()
+            
+            await update.message.reply_text(
+                "❌ **Laporan dibatalkan.**\n\n"
+                "Semua data dan folder yang dibuat telah dihapus.\n"
+                "Silakan mulai lagi jika diperlukan.",
+                reply_markup=ReplyKeyboardMarkup([[KeyboardButton("/start")]], resize_keyboard=True)
+            )
+            return ConversationHandler.END
+            
+        except Exception as e:
+            print(f"Error in cancel_report: {e}")
+            await update.message.reply_text(
+                "Laporan dibatalkan.",
+                reply_markup=ReplyKeyboardMarkup([[KeyboardButton("/start")]], resize_keyboard=True)
+            )
+            return ConversationHandler.END
+
+    async def fallback_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Fallback handler for unexpected messages"""
+        try:
+            await update.message.reply_text(
+                "❌ Perintah tidak dikenali.\n"
+                "Silakan mulai ulang dengan /start",
+                reply_markup=ReplyKeyboardMarkup([[KeyboardButton("/start")]], resize_keyboard=True)
+            )
+            return ConversationHandler.END
+        except:
+            return ConversationHandler.END
 
     def setup_handlers(self, application):
         """Setup handlers for the bot application"""
         print("🤖 Setting up Telegram Bot handlers...")
         
-        # Conversation handler
+        # Conversation handler with improved error handling
         conv_handler = ConversationHandler(
             entry_points=[
                 CommandHandler('start', self.start)
@@ -605,17 +840,38 @@ class TelegramBot:
                     )
                 ]
             },
-            fallbacks=[CommandHandler('start', self.start)],
-            allow_reentry=True
+            fallbacks=[
+                CommandHandler('start', self.start),
+                MessageHandler(filters.ALL, self.fallback_handler)
+            ],
+            allow_reentry=True,
+            name="report_conversation",
+            persistent=False
         )
         
         # Add handlers
         application.add_handler(conv_handler)
+        
+        # Add error handler
+        async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+            """Log errors caused by Updates."""
+            print(f"Exception while handling an update: {context.error}")
+            
+            # Try to send error message to user if update is available
+            if isinstance(update, Update) and update.effective_message:
+                try:
+                    await update.effective_message.reply_text(
+                        "❌ Terjadi kesalahan sistem. Silakan coba lagi dengan /start"
+                    )
+                except:
+                    pass
+        
+        application.add_error_handler(error_handler)
         print("✅ Bot handlers setup complete!")
 
-    # Tambahkan method baru untuk run polling (opsional, untuk testing local)
+    # Method for local testing (optional)
     def run_polling(self):
-        """Run the bot with polling (for local testing)"""
+        """Run the bot with polling (for local testing only)"""
         print("🤖 Starting Telegram Bot with polling...")
         
         application = Application.builder().token(self.token).build()
